@@ -1,0 +1,14 @@
+{
+  "name": "token-saver-mcp",
+  "version": "1.0.0",
+  "description": "Token-saving MCP server: text compression + PNG encoding pipeline for Claude Code",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "sharp": "^0.33.0"
+  }
+}
