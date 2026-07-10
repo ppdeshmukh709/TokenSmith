@@ -57,31 +57,43 @@ Real example: a 3,000-char JSON payload compresses to 1,350 chars after Stage 1 
 
 ## Install
 
+One command — clones, installs deps, and patches `~/.claude/settings.json` automatically.
+
+**Mac / Linux:**
 ```bash
-git clone https://github.com/ppdeshmukh709/TokenSmith
-cd TokenSmith
+curl -sSL https://raw.githubusercontent.com/ppdeshmukh709/TokenSmith/main/install.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+iwr https://raw.githubusercontent.com/ppdeshmukh709/TokenSmith/main/install.ps1 | iex
+```
+
+Restart Claude Code. Done.
+
+---
+
+### Manual install (optional)
+
+```bash
+git clone https://github.com/ppdeshmukh709/TokenSmith ~/.claude/TokenSmith
+cd ~/.claude/TokenSmith
 npm install
 ```
 
-Register it as an MCP server in `~/.claude/settings.json`:
-
+Add to `~/.claude/settings.json`:
 ```json
 {
   "mcpServers": {
     "token-saver": {
       "command": "node",
-      "args": ["/absolute/path/to/TokenSmith/index.js"]
+      "args": ["/Users/yourname/.claude/TokenSmith/index.js"]
     }
   }
 }
 ```
 
-**Windows:**
-```json
-"args": ["C:/Users/yourname/TokenSmith/index.js"]
-```
-
-Restart Claude Code. Three new tools are now available in every session.
+Restart Claude Code.
 
 ---
 
