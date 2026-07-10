@@ -1,83 +1,160 @@
-<<<<<<< HEAD
 # TokenSmith
 
-MCP server for Claude Code that cuts token usage by 45–80% using a two-stage pipeline:
+> Cut Claude Code token usage by 45–80% with a two-stage compression pipeline — install in 2 minutes, works transparently as an MCP server.
+
+---
+
+## How it works
+
+Every large tool output (bash results, file reads, grep output, JSON responses) burns tokens before Claude even starts reasoning. TokenSmith intercepts that content and compresses it in two stages:
 
 ```
-Large content → text compression → if still large → PNG encode → Claude
+Large content
+     │
+     ▼
+Stage 1: Text compression (type-aware)
+     │
+     ├── JSON     → strip nulls, collapse whitespace       ~55% smaller
+     ├── Code     → strip comments, blank lines            ~40% smaller
+     ├── Logs     → deduplicate repeated lines             ~60% smaller
+     └── Prose    → remove filler words, collapse spacing  ~30% smaller
+     │
+     ▼
+Still large? (> 800 chars)
+     │
+     ▼
+Stage 2: PNG encoding via pxpipe
+     │    Dense 5×8 bitmap font, 200 cols, dark theme
+     │    Claude reads it via vision tokens instead
+     │    ~75–80% total savings vs original
+     │
+     ▼
+Claude Code (smaller context, lower cost)
 ```
 
-## What it does
+---
 
-- **JSON**: removes nulls, collapses whitespace (~55% savings)
-- **Code**: strips comments and blank lines (~40% savings)
-- **Logs**: deduplicates repeated lines with counters (~60% savings)
-- **Prose**: removes filler words, collapses spacing (~30% savings)
-- **PNG fallback**: renders remaining large content via pxpipe → vision tokens (~75% savings)
+## Token savings
+
+| Content type | Text only | Text + PNG |
+|---|---|---|
+| JSON | ~55% | ~75% |
+| Code / AST | ~40% | ~70% |
+| Logs | ~60% | ~78% |
+| Prose | ~30% | ~65% |
+
+Real example: a 3,000-char JSON payload compresses to 1,350 chars after Stage 1 (55% saved), before PNG even runs.
+
+---
+
+## Requirements
+
+- Node.js 18+
+- Claude Code (any version)
+- [pxpipe](https://pxpipe.dev) *(optional — enables Stage 2 PNG encoding)*
+
+---
 
 ## Install
 
-**Requirements:** Node.js 18+, Claude Code
-
 ```bash
-git clone https://github.com/YOUR_USERNAME/token-saver
-cd token-saver
+git clone https://github.com/ppdeshmukh709/TokenSmith
+cd TokenSmith
 npm install
 ```
 
-Add to `~/.claude/settings.json`:
+Register it as an MCP server in `~/.claude/settings.json`:
 
 ```json
 {
   "mcpServers": {
     "token-saver": {
       "command": "node",
-      "args": ["/absolute/path/to/token-saver/index.js"]
+      "args": ["/absolute/path/to/TokenSmith/index.js"]
     }
   }
 }
 ```
 
-Restart Claude Code. You'll have 3 new tools: `compress`, `compress_batch`, `stats`.
-
-## PNG stage (optional)
-
-Install [pxpipe](https://pxpipe.dev) for the PNG encoding stage. Without it, only text compression runs (still ~40–60% savings).
-
-## Usage
-
-In any Claude Code session, when you get a large tool output:
-
-```
-compress(content: "<large bash output / file / JSON>")
+**Windows:**
+```json
+"args": ["C:/Users/yourname/TokenSmith/index.js"]
 ```
 
-Or batch multiple at once:
+Restart Claude Code. Three new tools are now available in every session.
+
+---
+
+## Tools
+
+### `compress`
+
+Compress a single block of content. Auto-detects type (JSON / code / logs / prose).
 
 ```
-compress_batch(items: [{id: "file1", content: "..."}, {id: "logs", content: "..."}])
+compress(content: "...large string...")
 ```
 
-Check session savings:
+Returns compressed text, or a PNG image block if the content is still large after text compression. Output includes a header showing the detected type and compression ratio.
+
+### `compress_batch`
+
+Compress multiple blocks in one call — more efficient than calling `compress` repeatedly.
+
+```
+compress_batch(items: [
+  { id: "bash_output", content: "..." },
+  { id: "file_read",   content: "..." }
+])
+```
+
+### `stats`
+
+Show cumulative savings for the current session.
 
 ```
 stats()
 ```
 
-## Token savings
+Sample output:
+```
+Token-saver session stats:
+  Compressions: 12
+  Input size:   142.3KB
+  Output size:  61.4KB
+  Saved:        80.9KB (56.8%)
+  PNG renders:  3
+```
 
-| Content type | Text compression | + PNG stage |
-|---|---|---|
-| JSON | ~55% | ~75% |
-| Code | ~40% | ~70% |
-| Logs | ~60% | ~78% |
-| Prose | ~30% | ~65% |
+---
 
-## Built with
+## Usage tips
 
-- [Headroom](https://github.com/headroomlabs-ai/headroom) — compression heuristics inspiration
-- [pxpipe](https://github.com/teamchong/pxpipe) — PNG rendering stage
-- [@modelcontextprotocol/sdk](https://github.com/modelcontextprotocol/typescript-sdk) — MCP server
-=======
-# TokenSmith
->>>>>>> a8854724b55d32655ca6cc872a43ef0b9bbba02e
+- Call `compress()` on any large bash output before reasoning over it
+- Use `compress_batch()` when reading multiple files in one go
+- Check `stats()` at the end of a long session to see total savings
+- PNG stage only activates for content > 800 chars after text compression — short outputs pass through instantly with no overhead
+
+---
+
+## File structure
+
+```
+index.js          MCP server, tool definitions, session stats
+compressor.js     Type detection + content-aware text compression
+png-render.js     PNG encoding via pxpipe (canvas fallback if pxpipe unavailable)
+```
+
+---
+
+## Built on
+
+- [Headroom](https://github.com/headroomlabs-ai/headroom) — compression heuristics and architecture inspiration
+- [pxpipe](https://pxpipe.dev) — PNG rendering stage (5×8 Spleen bitmap font, Claude-optimized profiles)
+- [@modelcontextprotocol/sdk](https://github.com/modelcontextprotocol/typescript-sdk) — MCP server protocol
+
+---
+
+## License
+
+MIT
