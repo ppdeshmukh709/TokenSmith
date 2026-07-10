@@ -1,4 +1,5 @@
-# token-saver
+<<<<<<< HEAD
+# TokenSmith
 
 MCP server for Claude Code that cuts token usage by 45–80% using a two-stage pipeline:
 
@@ -77,3 +78,6 @@ stats()
 - [Headroom](https://github.com/headroomlabs-ai/headroom) — compression heuristics inspiration
 - [pxpipe](https://github.com/teamchong/pxpipe) — PNG rendering stage
 - [@modelcontextprotocol/sdk](https://github.com/modelcontextprotocol/typescript-sdk) — MCP server
+=======
+# TokenSmith
+>>>>>>> a8854724b55d32655ca6cc872a43ef0b9bbba02e
