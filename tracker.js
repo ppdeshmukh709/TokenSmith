@@ -9,6 +9,8 @@ export function saveSession(stats) {
   if (stats.calls === 0) return;
   const entry = {
     ts: new Date().toISOString(),
+    source: 'mcp',
+    tool: 'compress',
     calls: stats.calls,
     bytesIn: stats.bytesIn,
     bytesOut: stats.bytesOut,

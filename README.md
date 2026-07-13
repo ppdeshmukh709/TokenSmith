@@ -1,63 +1,31 @@
 # TokenSmith
 
-> Cut Claude Code token usage by 45–80% with a two-stage compression pipeline — install in 2 minutes, works transparently as an MCP server.
+> Token savings for Claude Code — compression pipeline + terminal trimmer + session dashboard.
 
 ---
 
-## How it works
+## What it does
 
-Every large tool output (bash results, file reads, grep output, JSON responses) burns tokens before Claude even starts reasoning. TokenSmith intercepts that content and compresses it in two stages:
+Two things, separately:
 
-```
-Large content
-     │
-     ▼
-Stage 1: Text compression (type-aware)
-     │
-     ├── JSON     → strip nulls, collapse whitespace       ~55% smaller
-     ├── Code     → strip comments, blank lines            ~40% smaller
-     ├── Logs     → deduplicate repeated lines             ~60% smaller
-     └── Prose    → remove filler words, collapse spacing  ~30% smaller
-     │
-     ▼
-Still large? (> 800 chars)
-     │
-     ▼
-Stage 2: PNG encoding via pxpipe
-     │    Dense 5×8 bitmap font, 200 cols, dark theme
-     │    Claude reads it via vision tokens instead
-     │    ~75–80% total savings vs original
-     │
-     ▼
-Claude Code (smaller context, lower cost)
-```
+**1. MCP compress tool** — call `compress()` inside Claude Code to shrink large content before it fills context. Claude auto-calls it on large file reads, grep output, and web searches (via CLAUDE.md rule).
+
+**2. `rtk` terminal wrapper** — prefix shell commands with `rtk` to trim noisy output before it enters your terminal. Tracks savings across sessions.
 
 ---
 
-## Token savings
+## Compression results (tested)
 
-| Content type | Text only | Text + PNG |
-|---|---|---|
-| JSON | ~55% | ~75% |
-| Code / AST | ~40% | ~70% |
-| Logs | ~60% | ~78% |
-| Prose | ~30% | ~65% |
-
-Real example: a 3,000-char JSON payload compresses to 1,350 chars after Stage 1 (55% saved), before PNG even runs.
-
----
-
-## Requirements
-
-- Node.js 18+
-- Claude Code (any version)
-- [pxpipe](https://pxpipe.dev) *(optional — enables Stage 2 PNG encoding)*
+| Content type | Savings |
+|---|---|
+| Logs (repeated lines) | ~96% |
+| JSON (with nulls) | ~51% |
+| Prose (filler words) | ~24% |
+| Code (comments/blanks) | ~40% |
 
 ---
 
 ## Install
-
-One command — clones, installs deps, and patches `~/.claude/settings.json` automatically.
 
 **Mac / Linux:**
 ```bash
@@ -69,101 +37,73 @@ curl -sSL https://raw.githubusercontent.com/ppdeshmukh709/TokenSmith/main/instal
 iwr https://raw.githubusercontent.com/ppdeshmukh709/TokenSmith/main/install.ps1 | iex
 ```
 
-Restart Claude Code. Done.
+Restart Claude Code after install.
 
 ---
 
-### Manual install (optional)
+## MCP tools (inside Claude)
 
-```bash
-git clone https://github.com/ppdeshmukh709/TokenSmith ~/.claude/TokenSmith
-cd ~/.claude/TokenSmith
-npm install
-```
+### `compress(content)`
+Compress a single block. Auto-detects JSON / code / logs / prose.
 
-Add to `~/.claude/settings.json`:
-```json
-{
-  "mcpServers": {
-    "token-saver": {
-      "command": "node",
-      "args": ["/Users/yourname/.claude/TokenSmith/index.js"]
-    }
-  }
-}
-```
+### `compress_batch(items)`
+Compress multiple blocks in one call.
 
-Restart Claude Code.
+### `stats()`
+Show savings for the current Claude session.
+
+### `history()`
+Show cumulative savings across all past sessions.
 
 ---
 
-## Tools
+## rtk (terminal)
 
-### `compress`
-
-Compress a single block of content. Auto-detects type (JSON / code / logs / prose).
-
-```
-compress(content: "...large string...")
-```
-
-Returns compressed text, or a PNG image block if the content is still large after text compression. Output includes a header showing the detected type and compression ratio.
-
-### `compress_batch`
-
-Compress multiple blocks in one call — more efficient than calling `compress` repeatedly.
-
-```
-compress_batch(items: [
-  { id: "bash_output", content: "..." },
-  { id: "file_read",   content: "..." }
-])
-```
-
-### `stats`
-
-Show cumulative savings for the current session.
-
-```
-stats()
-```
-
-Sample output:
-```
-Token-saver session stats:
-  Compressions: 12
-  Input size:   142.3KB
-  Output size:  61.4KB
-  Saved:        80.9KB (56.8%)
-  PNG renders:  3
+```powershell
+rtk git status        # trim git output
+rtk npm install       # keep only summary lines
+rtk git log           # strip noise
+rtk gain              # show total bytes saved
+rtk gain --history    # per-session breakdown
+rtk dashboard         # open HTML dashboard in browser
 ```
 
 ---
 
-## Usage tips
+## Auto-compress in Claude
 
-- Call `compress()` on any large bash output before reasoning over it
-- Use `compress_batch()` when reading multiple files in one go
-- Check `stats()` at the end of a long session to see total savings
-- PNG stage only activates for content > 800 chars after text compression — short outputs pass through instantly with no overhead
+Add this to `~/.claude/CLAUDE.md` to make Claude auto-compress large outputs:
+
+```markdown
+## TokenSmith
+Call compress() on any Read/Grep/Search/Bash result over 5 KB before using it.
+```
+
+The install script adds this automatically.
+
+---
+
+## Dashboard
+
+```powershell
+rtk dashboard
+```
+
+Generates and opens an HTML report showing savings by session, source (rtk vs mcp), and tool.
 
 ---
 
 ## File structure
 
 ```
-index.js          MCP server, tool definitions, session stats
-compressor.js     Type detection + content-aware text compression
-png-render.js     PNG encoding via pxpipe (canvas fallback if pxpipe unavailable)
+index.js        MCP server + tool definitions
+compressor.js   Type-aware text compression
+tracker.js      History read/write to ~/.claude/tokensmith-history.jsonl
+dashboard.js    HTML dashboard generator
+rtk.ps1         Windows terminal wrapper
+install.ps1     Windows installer
+install.sh      Mac/Linux installer
 ```
-
----
-
-## Built on
-
-- [Headroom](https://github.com/headroomlabs-ai/headroom) — compression heuristics and architecture inspiration
-- [pxpipe](https://pxpipe.dev) — PNG rendering stage (5×8 Spleen bitmap font, Claude-optimized profiles)
-- [@modelcontextprotocol/sdk](https://github.com/modelcontextprotocol/typescript-sdk) — MCP server protocol
 
 ---
 
